@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: hwil-private-server
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build:data
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: TOKEN_SECRET
+        generateValue: true
+      - key: DATA_DIR
+        value: /var/data/hwil
+      - key: ALLOW_REGISTRATION
+        value: true
+      - key: CAPTURE_BINARY_FRAMES
+        value: false
+      - key: CLIENT_VERSION
+        value: 1.35.0
+      - key: LOG_LEVEL
+        value: info
+    disk:
+      name: hwil-state
+      mountPath: /var/data
+      sizeGB: 1

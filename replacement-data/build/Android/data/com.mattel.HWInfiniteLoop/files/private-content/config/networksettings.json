@@ -1,0 +1,35 @@
+{
+  "schema": "hwil.private.NetworkSettings/1",
+  "packageName": "com.mattel.HWInfiniteLoop",
+  "clientVersion": "1.35.0",
+  "environment": "private-clean-room",
+  "server": {
+    "host": "127.0.0.1",
+    "httpPort": 8080,
+    "udpPort": 7777,
+    "apiBaseUrl": "http://127.0.0.1:8080",
+    "webSocketUrl": "ws://127.0.0.1:8080/rpc",
+    "contentManifestUrl": "http://127.0.0.1:8080/v1/content/manifest"
+  },
+  "timeouts": {
+    "connectMilliseconds": 10000,
+    "requestMilliseconds": 15000,
+    "keepAliveMilliseconds": 20000,
+    "matchmakingMilliseconds": 30000
+  },
+  "retry": {
+    "maximumAttempts": 3,
+    "initialDelayMilliseconds": 500,
+    "maximumDelayMilliseconds": 4000
+  },
+  "security": {
+    "tlsRequired": false,
+    "allowCleartextOnPrivateNetwork": true,
+    "embeddedSecrets": false
+  },
+  "notes": [
+    "Change every 127.0.0.1 value to the reachable private-server address before device testing.",
+    "This JSON requires a clean-room client bridge; it is not the original Unity serialized object."
+  ]
+}
+

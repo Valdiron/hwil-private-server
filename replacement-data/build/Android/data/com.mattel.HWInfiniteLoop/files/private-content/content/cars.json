@@ -1,0 +1,42 @@
+{
+  "schema": "hwil.private.Cars/1",
+  "vehicles": [
+    {
+      "id": "loop_sprint",
+      "nameKey": "vehicle.loop_sprint",
+      "class": "starter",
+      "rarity": "common",
+      "handling": 0.72,
+      "acceleration": 0.66,
+      "topSpeed": 0.61,
+      "nitro": 0.68,
+      "massKilograms": 1180,
+      "starter": true
+    },
+    {
+      "id": "volt_runner",
+      "nameKey": "vehicle.volt_runner",
+      "class": "sport",
+      "rarity": "rare",
+      "handling": 0.67,
+      "acceleration": 0.82,
+      "topSpeed": 0.79,
+      "nitro": 0.74,
+      "massKilograms": 1260,
+      "starter": false
+    },
+    {
+      "id": "apex_shift",
+      "nameKey": "vehicle.apex_shift",
+      "class": "prototype",
+      "rarity": "epic",
+      "handling": 0.84,
+      "acceleration": 0.76,
+      "topSpeed": 0.88,
+      "nitro": 0.81,
+      "massKilograms": 1090,
+      "starter": false
+    }
+  ]
+}
+

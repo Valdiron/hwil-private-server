@@ -1,0 +1,22 @@
+{
+  "schema": "hwil.private.GuidMap/1",
+  "mappings": [
+    {
+      "name": "networksettings",
+      "externalGuid": "c482258c6c2335a4d80a56814f14756f",
+      "substitute": "config/networksettings.json",
+      "originalFormat": "Unity serialized object",
+      "substituteFormat": "JSON",
+      "status": "requires-client-bridge"
+    },
+    {
+      "name": "unetwork",
+      "externalGuid": "f12ef0cf4d36bfc479f334745035182e",
+      "substitute": "config/unetwork.json",
+      "originalFormat": "Unity serialized object",
+      "substituteFormat": "JSON",
+      "status": "requires-client-bridge"
+    }
+  ]
+}
+

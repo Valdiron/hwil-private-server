@@ -1,0 +1,29 @@
+{
+  "schema": "hwil.private.SceneInventory/1",
+  "apkContainsOnlyBuildIndex": 0,
+  "scenes": [
+    { "buildIndex": 0, "path": "Assets/Scenes/Build/Init.unity", "presentInApk": true },
+    { "buildIndex": 1, "path": "Assets/Scenes/Build/Start.unity", "presentInApk": false },
+    { "buildIndex": 2, "path": "Assets/Scenes/Build/Loading.unity", "presentInApk": false },
+    { "buildIndex": 3, "path": "Assets/Scenes/Build/Auth.unity", "presentInApk": false },
+    { "buildIndex": 4, "path": "Assets/Scenes/Build/Intro.unity", "presentInApk": false },
+    { "buildIndex": 5, "path": "Assets/Scenes/Build/FirstLoading.unity", "presentInApk": false },
+    { "buildIndex": 6, "path": "Assets/Scenes/Baked/Cache/NY_BIG.unity", "presentInApk": false },
+    { "buildIndex": 7, "path": "Assets/Scenes/Build/Garage_new.unity", "presentInApk": false },
+    { "buildIndex": 8, "path": "Assets/Scenes/Build/empty.unity", "presentInApk": false },
+    { "buildIndex": 9, "path": "Assets/Scenes/Baked/Cache/Track_tutorial.unity", "presentInApk": false },
+    { "buildIndex": 10, "path": "Assets/Scenes/Baked/Cache/LONDON_test.unity", "presentInApk": false },
+    { "buildIndex": 11, "path": "Assets/Scenes/Baked/Cache/TOKYO.unity", "presentInApk": false },
+    { "buildIndex": 12, "path": "Assets/Scenes/Build/Garage_new_christmass.unity", "presentInApk": false },
+    { "buildIndex": 13, "path": "Assets/Scenes/Build/OfferTunnel.unity", "presentInApk": false },
+    { "buildIndex": 14, "path": "Assets/Scenes/Util/CarRenderLeagueTeamResult.unity", "presentInApk": false },
+    { "buildIndex": 15, "path": "Assets/Scenes/Util/CarRenderLeagueSoloResult.unity", "presentInApk": false },
+    { "buildIndex": 16, "path": "Assets/Scenes/Util/CarRenderWeeklyPack.unity", "presentInApk": false },
+    { "buildIndex": 17, "path": "Assets/Scenes/Build/MemoryLeakDetector.unity", "presentInApk": false },
+    { "buildIndex": 18, "path": "Assets/Scenes/Build/UnsupportedDevice.unity", "presentInApk": false },
+    { "buildIndex": 19, "path": "Assets/Scenes/Build/Garage_new_china.unity", "presentInApk": false },
+    { "buildIndex": 20, "path": "Assets/Scenes/Baked/Cache/Beijing.unity", "presentInApk": false },
+    { "buildIndex": 21, "path": "Assets/Scenes/Build/Garage_new_BTS.unity", "presentInApk": false }
+  ]
+}
+

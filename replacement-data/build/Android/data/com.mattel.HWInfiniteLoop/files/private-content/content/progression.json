@@ -1,0 +1,20 @@
+{
+  "schema": "hwil.private.Progression/1",
+  "levels": [
+    { "level": 1, "totalPoints": 0, "unlocks": ["loop_sprint", "training_loop"] },
+    { "level": 2, "totalPoints": 500, "unlocks": [] },
+    { "level": 3, "totalPoints": 1250, "unlocks": ["volt_runner"] },
+    { "level": 4, "totalPoints": 2250, "unlocks": [] },
+    { "level": 5, "totalPoints": 3500, "unlocks": ["neon_switchback"] },
+    { "level": 6, "totalPoints": 5000, "unlocks": [] },
+    { "level": 7, "totalPoints": 7000, "unlocks": ["apex_shift"] },
+    { "level": 8, "totalPoints": 9500, "unlocks": [] },
+    { "level": 9, "totalPoints": 12500, "unlocks": [] },
+    { "level": 10, "totalPoints": 16000, "unlocks": [] }
+  ],
+  "raceRewards": {
+    "finish": { "points": 100, "softCurrency": 150 },
+    "win": { "points": 250, "softCurrency": 400 }
+  }
+}
+

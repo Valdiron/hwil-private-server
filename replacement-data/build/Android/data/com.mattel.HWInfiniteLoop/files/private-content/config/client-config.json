@@ -1,0 +1,30 @@
+{
+  "schema": "hwil.private.ClientConfig/1",
+  "configurationId": "private-clean-room-v1",
+  "configurationRevision": 1,
+  "features": {
+    "offlineTraining": true,
+    "localProfiles": true,
+    "privateMatchmaking": true,
+    "multiplayerRaceSimulation": false,
+    "advertising": false,
+    "purchases": false,
+    "telemetry": false,
+    "clans": false,
+    "leaderboards": false
+  },
+  "starterContent": {
+    "vehicleId": "loop_sprint",
+    "trackId": "training_loop",
+    "softCurrency": 2500,
+    "hardCurrency": 0,
+    "tickets": 10
+  },
+  "content": {
+    "manifestPath": "manifest.json",
+    "carsPath": "content/cars.json",
+    "tracksPath": "content/tracks.json",
+    "progressionPath": "content/progression.json"
+  }
+}
+

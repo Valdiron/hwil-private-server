@@ -1,0 +1,18 @@
+{
+  "schema": "hwil.private.Localization/1",
+  "locale": "pt-BR",
+  "strings": {
+    "app.privateMode": "Modo servidor privado",
+    "app.cleanRoomNotice": "Conteúdo substituto criado do zero",
+    "vehicle.loop_sprint": "Loop Sprint",
+    "vehicle.volt_runner": "Volt Runner",
+    "vehicle.apex_shift": "Apex Shift",
+    "track.training_loop": "Circuito de Treino",
+    "track.neon_switchback": "Curvas Neon",
+    "race.start": "Iniciar corrida",
+    "race.finish": "Corrida concluída",
+    "network.connecting": "Conectando ao servidor privado",
+    "network.unavailable": "Servidor privado indisponível"
+  }
+}
+

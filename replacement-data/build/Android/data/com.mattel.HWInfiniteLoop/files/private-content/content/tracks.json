@@ -1,0 +1,26 @@
+{
+  "schema": "hwil.private.Tracks/1",
+  "tracks": [
+    {
+      "id": "training_loop",
+      "nameKey": "track.training_loop",
+      "mode": "time-trial",
+      "laps": 3,
+      "lengthMeters": 940,
+      "maximumPlayers": 1,
+      "geometryPath": "content/geometry/training-loop.json",
+      "available": true
+    },
+    {
+      "id": "neon_switchback",
+      "nameKey": "track.neon_switchback",
+      "mode": "time-trial",
+      "laps": 2,
+      "lengthMeters": 1320,
+      "maximumPlayers": 1,
+      "geometryPath": null,
+      "available": false
+    }
+  ]
+}
+

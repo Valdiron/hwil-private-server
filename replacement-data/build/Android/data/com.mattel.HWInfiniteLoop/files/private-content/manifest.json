@@ -1,0 +1,72 @@
+{
+  "schema": "hwil.private.ContentManifest/1",
+  "packId": "hwil-private-clean-room",
+  "version": "0.1.0",
+  "packageName": "com.mattel.HWInfiniteLoop",
+  "targetClientVersion": "1.35.0",
+  "originalAssetsIncluded": false,
+  "originalClientCompatible": false,
+  "requiresClientBridge": true,
+  "files": [
+    {
+      "path": "compatibility/guid-map.json",
+      "bytes": 610,
+      "sha256": "7f1780d927c5b4273be4db5b2fdc13b8b574b3b6bad04ecb07e9f69d9e0d17f6"
+    },
+    {
+      "path": "compatibility/scenes.json",
+      "bytes": 2292,
+      "sha256": "9e41279c7276c98f84f7230ffc53f6aa005e4a6c0e2bfd30f75455b45e35442a"
+    },
+    {
+      "path": "config/client-config.json",
+      "bytes": 735,
+      "sha256": "15b41f4028ffd357a13b9b3a88e6d70821eecfd0163237d077dbd7152fabdef8"
+    },
+    {
+      "path": "config/networksettings.json",
+      "bytes": 1029,
+      "sha256": "0e70de5e960777901ee407802d1d3b394c3a1151f073fa7b47dc5e46daeb0534"
+    },
+    {
+      "path": "config/unetwork.json",
+      "bytes": 1027,
+      "sha256": "767ed5e39e60f5c23906f599c6ff07916db1be3a4a67e3fecabb12571cedd779"
+    },
+    {
+      "path": "content/cars.json",
+      "bytes": 895,
+      "sha256": "b2d7240a200356c8d6b17b712d903721c5923aca104d3478acfc15bd0f0cbd7b"
+    },
+    {
+      "path": "content/geometry/training-loop.json",
+      "bytes": 793,
+      "sha256": "20b24224c75571cd0602574948afda259606050beb832a2559cc7828d1911964"
+    },
+    {
+      "path": "content/progression.json",
+      "bytes": 823,
+      "sha256": "ad12e5d18ff92f41e325230100ab08e7199fd2060d8a97dd9c885dad04022a2f"
+    },
+    {
+      "path": "content/tracks.json",
+      "bytes": 564,
+      "sha256": "1cecb3a641fe432f3c9f3e260610a3df37bedeed67a336cfe125307cc4cc8a24"
+    },
+    {
+      "path": "localization/en-US.json",
+      "bytes": 593,
+      "sha256": "1b94ddd606f089d25b255a81eaeedc64405ea616c8473b52c1cba007da1ffe5b"
+    },
+    {
+      "path": "localization/pt-BR.json",
+      "bytes": 617,
+      "sha256": "f3b4d4aeae791dd8df66a14b083bd858123e2959ec9403c6f0f7519d36c4194e"
+    },
+    {
+      "path": "profiles/default-profile.json",
+      "bytes": 425,
+      "sha256": "b3c55313cc8634dfba037ea6955020f75868993d1f3745e0bc0179316c2d9896"
+    }
+  ]
+}

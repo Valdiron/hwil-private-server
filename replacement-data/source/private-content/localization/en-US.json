@@ -1,0 +1,18 @@
+{
+  "schema": "hwil.private.Localization/1",
+  "locale": "en-US",
+  "strings": {
+    "app.privateMode": "Private server mode",
+    "app.cleanRoomNotice": "Clean-room replacement content",
+    "vehicle.loop_sprint": "Loop Sprint",
+    "vehicle.volt_runner": "Volt Runner",
+    "vehicle.apex_shift": "Apex Shift",
+    "track.training_loop": "Training Loop",
+    "track.neon_switchback": "Neon Switchback",
+    "race.start": "Start race",
+    "race.finish": "Race complete",
+    "network.connecting": "Connecting to private server",
+    "network.unavailable": "Private server unavailable"
+  }
+}
+

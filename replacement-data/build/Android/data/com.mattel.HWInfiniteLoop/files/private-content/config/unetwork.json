@@ -1,0 +1,30 @@
+{
+  "schema": "hwil.private.UNetwork/1",
+  "transport": "udp",
+  "tickRateHz": 30,
+  "snapshotRateHz": 20,
+  "maximumPlayers": 8,
+  "maximumPacketBytes": 1200,
+  "disconnectTimeoutMilliseconds": 15000,
+  "interpolationBufferMilliseconds": 100,
+  "channels": [
+    { "id": 0, "name": "reliable", "delivery": "reliable-ordered" },
+    { "id": 1, "name": "state", "delivery": "unreliable-sequenced" }
+  ],
+  "messages": [
+    { "id": 24576, "name": "ClientHello", "channel": 0 },
+    { "id": 24577, "name": "ServerHello", "channel": 0 },
+    { "id": 24578, "name": "JoinRace", "channel": 0 },
+    { "id": 24579, "name": "LeaveRace", "channel": 0 },
+    { "id": 24580, "name": "VehicleInput", "channel": 1 },
+    { "id": 24581, "name": "VehicleSnapshot", "channel": 1 },
+    { "id": 24582, "name": "RaceState", "channel": 0 },
+    { "id": 24583, "name": "RaceResult", "channel": 0 }
+  ],
+  "compatibility": {
+    "messageIdsAreCleanRoom": true,
+    "originalPacketRegistryRecovered": false,
+    "requiresClientBridge": true
+  }
+}
+

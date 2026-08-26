@@ -1,0 +1,23 @@
+{
+  "schema": "hwil.private.DefaultProfile/1",
+  "displayName": "Looper",
+  "level": 1,
+  "points": 0,
+  "currencies": {
+    "soft": 2500,
+    "hard": 0,
+    "tickets": 10
+  },
+  "inventory": {
+    "vehicles": ["loop_sprint"],
+    "selectedVehicle": "loop_sprint",
+    "tracks": ["training_loop"]
+  },
+  "settings": {
+    "language": "pt-BR",
+    "musicVolume": 0.7,
+    "effectsVolume": 0.85,
+    "steering": "touch"
+  }
+}
+
