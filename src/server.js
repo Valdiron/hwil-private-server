@@ -5,7 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { WebSocketServer } from "ws";
 import { createLogger } from "./logger.js";
-import { inspectBinaryFrame } from "./protocol.js";
+import { buildHwilSuccessResponse, inspectBinaryFrame, parseHwilFrame } from "./protocol.js";
 import { PrivateServerService, ServiceError } from "./service.js";
 import { JsonStore } from "./store.js";
 
@@ -98,6 +98,13 @@ export async function createPrivateServer(config, options = {}) {
   await store.initialize();
   const service = new PrivateServerService(store, config);
   const startedAt = Date.now();
+  const compatibilityProfileId = createHash("sha256")
+    .update("hwil-private-profile-v1")
+    .digest()
+    .subarray(0, 16);
+  const compatibilityProfileSecret = createHash("sha256")
+    .update(`${config.tokenSecret}:hwil-private-secret-v1`)
+    .digest();
 
   const httpServer = http.createServer(async (request, response) => {
     const requestId = randomUUID();
@@ -109,7 +116,7 @@ export async function createPrivateServer(config, options = {}) {
       if (request.method === "GET" && pathname === "/") {
         return sendJson(response, 200, {
           service: "hwil-private-server",
-          version: "0.3.0",
+          version: "0.4.0",
           status: "online",
           health: "/health",
           compatibility: "/v1/compatibility",
@@ -118,11 +125,11 @@ export async function createPrivateServer(config, options = {}) {
       if (request.method === "GET" && pathname === "/v1/status") {
         return sendJson(response, 200, {
           service: "hwil-private-server",
-          version: "0.3.0",
+          version: "0.4.0",
           clientVersion: config.clientVersion,
-          websocketPaths: ["/ws", "/rpc"],
+          websocketPaths: ["/api", "/ws", "/rpc"],
           udpPort: config.udpPort,
-          compatibilityPhase: "diagnostic-foundation",
+          compatibilityPhase: "original-client-bootstrap",
           replacementContentManifest: "/v1/content/manifest",
         });
       }
@@ -194,7 +201,7 @@ export async function createPrivateServer(config, options = {}) {
   const webSocketServer = new WebSocketServer({ noServer: true, maxPayload: config.wsMaxPayloadBytes });
   httpServer.on("upgrade", (request, socket, head) => {
     const pathname = requestPath(request);
-    if (pathname !== "/ws" && pathname !== "/rpc") return socket.destroy();
+    if (pathname !== "/api" && pathname !== "/ws" && pathname !== "/rpc") return socket.destroy();
     webSocketServer.handleUpgrade(request, socket, head, (client) => {
       webSocketServer.emit("connection", client, request);
     });
@@ -202,13 +209,17 @@ export async function createPrivateServer(config, options = {}) {
 
   webSocketServer.on("connection", (socket, request) => {
     const connectionId = randomUUID();
-    logger.info("websocket_connected", { connectionId, remoteAddress: request.socket.remoteAddress });
-    socket.send(JSON.stringify({
-      type: "hello",
-      service: "hwil-private-server",
-      compatibilityPhase: "diagnostic-foundation",
-      connectionId,
-    }));
+    const pathname = requestPath(request);
+    const originalClient = pathname === "/api";
+    logger.info("websocket_connected", { connectionId, pathname, remoteAddress: request.socket.remoteAddress });
+    if (!originalClient) {
+      socket.send(JSON.stringify({
+        type: "hello",
+        service: "hwil-private-server",
+        compatibilityPhase: "original-client-bootstrap",
+        connectionId,
+      }));
+    }
 
     socket.on("message", async (data, isBinary) => {
       if (isBinary) {
@@ -219,6 +230,32 @@ export async function createPrivateServer(config, options = {}) {
           await fs.mkdir(directory, { recursive: true });
           const filename = `${Date.now()}-${frame.sha256.slice(0, 16)}.bin`;
           await fs.writeFile(path.join(directory, filename), data, { mode: 0o600 });
+        }
+        if (originalClient) {
+          try {
+            const requestFrame = parseHwilFrame(data);
+            if (!requestFrame.request) {
+              logger.warn("hwil_non_request_frame_ignored", {
+                connectionId,
+                flags: requestFrame.flags,
+                method: requestFrame.method,
+                sequence: requestFrame.sequence,
+              });
+              return;
+            }
+            socket.send(buildHwilSuccessResponse(requestFrame, {
+              profileId: compatibilityProfileId,
+              profileSecret: compatibilityProfileSecret,
+            }));
+            logger.info("hwil_response_sent", {
+              connectionId,
+              method: requestFrame.method,
+              methodName: requestFrame.methodName,
+              sequence: requestFrame.sequence,
+            });
+          } catch (error) {
+            logger.warn("hwil_frame_rejected", { connectionId, message: error.message });
+          }
         }
         return;
       }
@@ -260,9 +297,9 @@ export async function createPrivateServer(config, options = {}) {
     if (message.toString("utf8") === "HWIL_DISCOVERY") {
       const response = Buffer.from(JSON.stringify({
         service: "hwil-private-server",
-        version: "0.3.0",
+        version: "0.4.0",
         clientVersion: config.clientVersion,
-        phase: "diagnostic-foundation",
+        phase: "original-client-bootstrap",
       }));
       udpServer.send(response, remote.port, remote.address);
     }

@@ -48,7 +48,7 @@ export class PrivateServerService {
 
   compatibility() {
     return {
-      phase: "diagnostic-foundation",
+      phase: "original-client-bootstrap",
       client: { packageName: "com.mattel.HWInfiniteLoop", version: this.config.clientVersion },
       implemented: [
         "local profile bootstrap and authentication",

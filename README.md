@@ -1,6 +1,8 @@
 # HW Infinite Loop private server and replacement data
 
-Version 0.3.0 adds a production-ready Render Blueprint, automatic public-host detection on Render,
+Version 0.4.0 adds the original client's five-byte binary RPC framing and a compatible `/api`
+WebSocket bootstrap for registration, authentication, synchronization, and server time. It retains
+the production-ready Render Blueprint, automatic public-host detection on Render,
 and a root status endpoint.
 
 This is a clean-room private-server foundation, replacement content pack, and protocol diagnostic

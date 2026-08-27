@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import WebSocket from "ws";
 import { loadConfig } from "../src/config.js";
+import { buildHwilFrame, parseHwilFrame } from "../src/protocol.js";
 import { createPrivateServer } from "../src/server.js";
 
 const silentLogger = Object.freeze({ debug() {}, info() {}, warn() {}, error() {} });
@@ -52,7 +53,7 @@ test("health, profile auth, save, and matchmaking flow", async (t) => {
 
   const root = await jsonRequest(`${baseUrl}/`);
   assert.equal(root.response.status, 200);
-  assert.equal(root.body.version, "0.3.0");
+  assert.equal(root.body.version, "0.4.0");
 
   const contentManifest = await jsonRequest(`${baseUrl}/v1/content/manifest`);
   assert.equal(contentManifest.response.status, 200);
@@ -131,6 +132,43 @@ test("WebSocket exposes clean-room RPC", async (t) => {
     }, 5);
   });
   assert.equal(typeof reply.result.epochMilli, "number");
+});
+
+test("original /api WebSocket completes bootstrap RPCs without a JSON greeting", async (t) => {
+  const { addresses } = await fixture(t);
+  const socket = new WebSocket(`ws://127.0.0.1:${addresses.httpAddress.port}/api`);
+  t.after(() => socket.close());
+  const messages = [];
+  socket.on("message", (data, isBinary) => messages.push({ data: Buffer.from(data), isBinary }));
+  await new Promise((resolve, reject) => {
+    socket.once("open", resolve);
+    socket.once("error", reject);
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(messages.length, 0);
+
+  for (const [index, method] of [0, 1, 2, 73].entries()) {
+    const sequence = index + 40;
+    socket.send(buildHwilFrame({ flags: 3, method, sequence, payload: Buffer.from([0xde, 0xad]) }));
+    const response = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("HWIL response timed out")), 1000);
+      const check = () => {
+        const found = messages
+          .filter((message) => message.isBinary)
+          .map((message) => parseHwilFrame(message.data))
+          .find((frame) => frame.sequence === sequence);
+        if (found) {
+          clearTimeout(timeout);
+          resolve(found);
+        } else {
+          setTimeout(check, 5);
+        }
+      };
+      check();
+    });
+    assert.equal(response.flags, 4);
+    assert.equal(response.method, method);
+  }
 });
 
 test("UDP discovery replies, while unknown datagrams are not reflected", async (t) => {
