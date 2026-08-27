@@ -122,7 +122,7 @@ export async function createPrivateServer(config, options = {}) {
       if (request.method === "GET" && pathname === "/") {
         return sendJson(response, 200, {
           service: "hwil-private-server",
-          version: "0.4.0",
+          version: "0.5.0",
           status: "online",
           health: "/health",
           compatibility: "/v1/compatibility",
@@ -131,7 +131,7 @@ export async function createPrivateServer(config, options = {}) {
       if (request.method === "GET" && pathname === "/v1/status") {
         return sendJson(response, 200, {
           service: "hwil-private-server",
-          version: "0.4.0",
+          version: "0.5.0",
           clientVersion: config.clientVersion,
           websocketPaths: ["/api", "/ws", "/rpc"],
           udpPort: config.udpPort,
@@ -252,6 +252,7 @@ export async function createPrivateServer(config, options = {}) {
             socket.send(buildHwilSuccessResponse(requestFrame, {
               profileId: compatibilityProfileId,
               profileSecret: compatibilityProfileSecret,
+              raceId: requestFrame.method === 102 ? randomUUID() : undefined,
             }));
             logger.info("hwil_response_sent", {
               connectionId,
@@ -303,7 +304,7 @@ export async function createPrivateServer(config, options = {}) {
     if (message.toString("utf8") === "HWIL_DISCOVERY") {
       const response = Buffer.from(JSON.stringify({
         service: "hwil-private-server",
-        version: "0.4.0",
+        version: "0.5.0",
         clientVersion: config.clientVersion,
         phase: "original-client-bootstrap",
       }));

@@ -57,7 +57,7 @@ test("health, profile auth, save, and matchmaking flow", async (t) => {
 
   const root = await jsonRequest(`${baseUrl}/`);
   assert.equal(root.response.status, 200);
-  assert.equal(root.body.version, "0.4.0");
+  assert.equal(root.body.version, "0.5.0");
 
   const contentManifest = await jsonRequest(`${baseUrl}/v1/content/manifest`);
   assert.equal(contentManifest.response.status, 200);
@@ -151,7 +151,7 @@ test("original /api WebSocket completes bootstrap RPCs without a JSON greeting",
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(messages.length, 0);
 
-  for (const [index, method] of [0, 1, 2, 73].entries()) {
+  for (const [index, method] of [0, 1, 2, 73, 102].entries()) {
     const sequence = index + 40;
     socket.send(buildHwilFrame({ flags: 3, method, sequence, payload: Buffer.from([0xde, 0xad]) }));
     const response = await new Promise((resolve, reject) => {
@@ -172,6 +172,7 @@ test("original /api WebSocket completes bootstrap RPCs without a JSON greeting",
     });
     assert.equal(response.flags, 4);
     assert.equal(response.method, method);
+    if (method === 102) assert.ok(response.payload.length > 20);
   }
 });
 

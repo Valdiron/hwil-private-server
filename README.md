@@ -1,6 +1,6 @@
 # HW Infinite Loop private server and replacement data
 
-Version 0.4.0 adds the original client's five-byte binary RPC framing and a compatible `/api`
+Version 0.5.0 adds a compatible offline-race start response on top of the original client's five-byte binary RPC framing and `/api`
 WebSocket bootstrap for registration, authentication, synchronization, and server time. It retains
 the production-ready Render Blueprint, automatic public-host detection on Render,
 and a root status endpoint.
@@ -9,9 +9,9 @@ This is a clean-room private-server foundation, replacement content pack, and pr
 gateway for the user-supplied Hot Wheels Infinite Loop `1.35.0` APK. It contains no Mattel or
 Creative Mobile assets.
 
-> Status: the server and new JSON replacement data are tested. The original APK does not read the
-> substitute format yet because it expects Unity-serialized scenes and objects. A client bridge or a
-> rebuilt client is still required.
+> Status: the server, binary bootstrap, and offline-race start response are covered by automated
+> tests. The complete original backend is not reproduced, so remaining client RPCs are handled with
+> compatible empty responses until device testing identifies any additional required fields.
 
 ## What works
 

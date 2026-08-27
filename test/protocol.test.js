@@ -4,6 +4,7 @@ import {
   buildCompactMessageHeader,
   buildHwilFrame,
   buildHwilSuccessResponse,
+  buildStartLeagueRaceResponse,
   inspectBinaryFrame,
   parseHwilFrame,
 } from "../src/protocol.js";
@@ -16,6 +17,24 @@ test("recognizes an Apache Thrift compact message header", () => {
   assert.equal(inspection.sequenceId, 37);
   assert.equal(inspection.messageType, "call");
   assert.equal(inspection.version, 1);
+});
+
+test("offline race start returns the required success result and race id", () => {
+  const raceId = "private-offline-race-1";
+  const payload = buildStartLeagueRaceResponse(raceId);
+
+  // Compact Thrift fields 1 and 2 are i32 enums with value 1.
+  assert.deepEqual(payload.subarray(0, 4), Buffer.from([0x15, 0x02, 0x15, 0x02]));
+  assert.ok(payload.includes(Buffer.from(raceId)));
+  assert.equal(payload.at(-1), 0x00);
+
+  const response = parseHwilFrame(buildHwilSuccessResponse(
+    { method: 102, sequence: 17 },
+    { raceId },
+  ));
+  assert.equal(response.method, 102);
+  assert.equal(response.sequence, 17);
+  assert.ok(response.payload.includes(Buffer.from(raceId)));
 });
 
 test("summarizes unknown binary data without throwing", () => {

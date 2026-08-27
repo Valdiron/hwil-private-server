@@ -94,6 +94,15 @@ function writeCompactInt64Field(fieldId, previousFieldId, input) {
   ]);
 }
 
+function writeCompactInt32Field(fieldId, previousFieldId, input) {
+  const value = BigInt(input);
+  const zigzag = value >= 0n ? value << 1n : ((-value) << 1n) - 1n;
+  return Buffer.concat([
+    writeCompactFieldHeader(fieldId, previousFieldId, COMPACT_TYPE.int32),
+    writeVarint(zigzag),
+  ]);
+}
+
 export function parseHwilFrame(input) {
   const buffer = Buffer.isBuffer(input) ? input : Buffer.from(input);
   if (buffer.length < 5) throw new Error("HWIL frame is shorter than its five-byte header");
@@ -139,12 +148,30 @@ export function buildTimeResponse(epochMilli = Date.now()) {
   ]);
 }
 
+export function buildStartLeagueRaceResponse(raceId, ticketId = raceId) {
+  if (typeof raceId !== "string" || raceId.length === 0) {
+    throw new TypeError("raceId is required for an offline race response");
+  }
+  return Buffer.concat([
+    // TStartLeagueResult.success
+    writeCompactInt32Field(1, 0, 1),
+    // TStartLeagueRaceType.offline
+    writeCompactInt32Field(2, 1, 1),
+    writeCompactBinaryField(3, 2, raceId),
+    writeCompactBinaryField(4, 3, ticketId),
+    writeCompactInt32Field(5, 4, 0),
+    Buffer.from([COMPACT_TYPE.stop]),
+  ]);
+}
+
 export function buildHwilSuccessResponse(frame, options = {}) {
   let payload = Buffer.from([COMPACT_TYPE.stop]);
   if (frame.method === 0) {
     payload = buildRegistrationResponse(options.profileId, options.profileSecret);
   } else if (frame.method === 73) {
     payload = buildTimeResponse(options.epochMilli ?? Date.now());
+  } else if (frame.method === 102) {
+    payload = buildStartLeagueRaceResponse(options.raceId, options.ticketId);
   }
   return buildHwilFrame({ method: frame.method, sequence: frame.sequence, payload });
 }
