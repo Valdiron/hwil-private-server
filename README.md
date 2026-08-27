@@ -1,8 +1,9 @@
 # HW Infinite Loop private server and replacement data
 
-Version 0.6.0 adds a room-based JSON race relay for matchmaking, player presence, movement,
-rotation, and nitro state. It shares the same Render HTTP listener instead of opening a second
-public port. The original client's five-byte binary RPC framing and `/api` bootstrap remain intact.
+Version 0.7.0 hardens the original-client gateway and multiplayer relay with validated binary
+headers, WebSocket heartbeat handling, deterministic replacement-data builds, safe capture errors,
+strict nitro input, duplicate-join protection, and startup rollback. The original client's five-byte
+binary RPC framing and `/api` bootstrap remain intact.
 
 This is a clean-room private-server foundation, replacement content pack, and protocol diagnostic
 gateway for the user-supplied Hot Wheels Infinite Loop `1.35.0` APK. It contains no Mattel or
@@ -106,7 +107,8 @@ Connect to `ws://SERVER:8080/rpc`, receive the hello message, then send:
 
 Supported method aliases include `Auth`, `GetConfig`, `GetProfile`, `SaveProfile`,
 `StartRaceSearch`, `StopRaceSearch`, and `GetGameliftEndpoints`. These aliases help organize the
-compatibility work but do not claim that the original binary RPC envelope is already implemented.
+compatibility work; the original five-byte envelope is implemented separately at `/api`, while
+several complete Thrift response payloads still require a real device trace.
 
 ## JSON multiplayer relay
 

@@ -23,6 +23,8 @@ services:
         value: 1.35.0
       - key: LOG_LEVEL
         value: info
+      - key: WS_HEARTBEAT_INTERVAL_MS
+        value: 30000
     disk:
       name: hwil-state
       mountPath: /var/data

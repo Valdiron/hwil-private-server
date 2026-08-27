@@ -52,6 +52,14 @@ function normalizeVector(value, label, allowW = false) {
   return normalized;
 }
 
+function normalizeBoosting(value) {
+  if (value === undefined) return false;
+  if (typeof value !== "boolean") {
+    throw new RaceProtocolError("invalid_boost", "isBoosting must be a boolean");
+  }
+  return value;
+}
+
 export class RaceHub {
   constructor(logger, options = {}) {
     this.logger = logger;
@@ -76,6 +84,9 @@ export class RaceHub {
   }
 
   join(socket, playerId, message) {
+    if (this.players.has(playerId)) {
+      throw new RaceProtocolError("already_in_match", "Player has already joined a match");
+    }
     const carId = normalizeCarId(message.carId);
     const opponents = [...this.players.values()]
       .filter((player) => player.matchId === this.roomId && player.playerId !== playerId)
@@ -113,7 +124,7 @@ export class RaceHub {
     }
     const position = normalizeVector(message.position, "position");
     const rotation = normalizeVector(message.rotation, "rotation", true);
-    const isBoosting = Boolean(message.isBoosting);
+    const isBoosting = normalizeBoosting(message.isBoosting);
     this.broadcast(player.matchId, socket, {
       type: "OPPONENT_MOVE",
       matchId: player.matchId,

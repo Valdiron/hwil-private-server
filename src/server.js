@@ -3,14 +3,14 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
-import { WebSocketServer } from "ws";
+import { WebSocket, WebSocketServer } from "ws";
 import { createLogger } from "./logger.js";
 import { buildHwilSuccessResponse, inspectBinaryFrame, parseHwilFrame } from "./protocol.js";
 import { RaceHub, RaceProtocolError } from "./race.js";
 import { PrivateServerService, ServiceError } from "./service.js";
 import { JsonStore } from "./store.js";
 
-const SERVER_VERSION = "0.6.0";
+const SERVER_VERSION = "0.7.0";
 const WEBSOCKET_PATHS = Object.freeze(["/api", "/ws", "/rpc", "/race"]);
 
 function sendJson(response, status, body) {
@@ -22,6 +22,19 @@ function sendJson(response, status, body) {
     "x-content-type-options": "nosniff",
   });
   response.end(payload);
+}
+
+function sendWebSocket(socket, payload, logger, context) {
+  if (socket.readyState !== WebSocket.OPEN) return false;
+  try {
+    socket.send(payload, (error) => {
+      if (error) logger.warn("websocket_send_failed", { ...context, message: error.message });
+    });
+    return true;
+  } catch (error) {
+    logger.warn("websocket_send_failed", { ...context, message: error.message });
+    return false;
+  }
 }
 
 const CONTENT_TYPES = Object.freeze({
@@ -113,8 +126,9 @@ export async function createPrivateServer(config, options = {}) {
 
   const httpServer = http.createServer(async (request, response) => {
     const requestId = randomUUID();
-    const pathname = requestPath(request);
+    let pathname = "/";
     try {
+      pathname = requestPath(request);
       // The original 1.35.0 client derives this URL from the WebSocket
       // endpoint (wss -> https, api -> status) and treats failures as a
       // lost backend connection.
@@ -212,11 +226,16 @@ export async function createPrivateServer(config, options = {}) {
 
   const webSocketServer = new WebSocketServer({ noServer: true, maxPayload: config.wsMaxPayloadBytes });
   httpServer.on("upgrade", (request, socket, head) => {
-    const pathname = requestPath(request);
-    if (!WEBSOCKET_PATHS.includes(pathname)) return socket.destroy();
-    webSocketServer.handleUpgrade(request, socket, head, (client) => {
-      webSocketServer.emit("connection", client, request);
-    });
+    try {
+      const pathname = requestPath(request);
+      if (!WEBSOCKET_PATHS.includes(pathname)) return socket.destroy();
+      webSocketServer.handleUpgrade(request, socket, head, (client) => {
+        webSocketServer.emit("connection", client, request);
+      });
+    } catch (error) {
+      logger.warn("websocket_upgrade_rejected", { message: error.message });
+      socket.destroy();
+    }
   });
 
   webSocketServer.on("connection", (socket, request) => {
@@ -224,15 +243,19 @@ export async function createPrivateServer(config, options = {}) {
     const playerId = `p_${connectionId.replaceAll("-", "").slice(0, 12)}`;
     const pathname = requestPath(request);
     const originalClient = pathname === "/api";
+    socket.isAlive = true;
+    socket.on("pong", () => {
+      socket.isAlive = true;
+    });
     logger.info("websocket_connected", { connectionId, pathname, remoteAddress: request.socket.remoteAddress });
     if (!originalClient) {
-      socket.send(JSON.stringify({
+      sendWebSocket(socket, JSON.stringify({
         type: "hello",
         service: "hwil-private-server",
         compatibilityPhase: "original-client-bootstrap",
         connectionId,
         playerId,
-      }));
+      }), logger, { connectionId });
     }
 
     socket.on("message", async (data, isBinary) => {
@@ -240,10 +263,14 @@ export async function createPrivateServer(config, options = {}) {
         const frame = inspectBinaryFrame(data);
         logger.info("binary_frame_received", { connectionId, ...frame });
         if (config.captureBinaryFrames) {
-          const directory = path.join(config.dataDir, "captures");
-          await fs.mkdir(directory, { recursive: true });
-          const filename = `${Date.now()}-${frame.sha256.slice(0, 16)}.bin`;
-          await fs.writeFile(path.join(directory, filename), data, { mode: 0o600 });
+          try {
+            const directory = path.join(config.dataDir, "captures");
+            await fs.mkdir(directory, { recursive: true });
+            const filename = `${Date.now()}-${frame.sha256.slice(0, 16)}.bin`;
+            await fs.writeFile(path.join(directory, filename), data, { mode: 0o600 });
+          } catch (error) {
+            logger.warn("binary_frame_capture_failed", { connectionId, message: error.message });
+          }
         }
         if (originalClient) {
           try {
@@ -257,11 +284,11 @@ export async function createPrivateServer(config, options = {}) {
               });
               return;
             }
-            socket.send(buildHwilSuccessResponse(requestFrame, {
+            sendWebSocket(socket, buildHwilSuccessResponse(requestFrame, {
               profileId: compatibilityProfileId,
               profileSecret: compatibilityProfileSecret,
-              raceId: requestFrame.method === 102 ? randomUUID() : undefined,
-            }));
+              raceId: [102, 120].includes(requestFrame.method) ? randomUUID() : undefined,
+            }), logger, { connectionId, method: requestFrame.method });
             logger.info("hwil_response_sent", {
               connectionId,
               method: requestFrame.method,
@@ -295,21 +322,26 @@ export async function createPrivateServer(config, options = {}) {
           requestMessage.params ?? {},
           requestMessage.token,
         );
-        socket.send(JSON.stringify({ id: requestMessage.id ?? null, result }));
+        sendWebSocket(
+          socket,
+          JSON.stringify({ id: requestMessage.id ?? null, result }),
+          logger,
+          { connectionId },
+        );
       } catch (error) {
         if (error instanceof RaceProtocolError) {
-          socket.send(JSON.stringify({
+          sendWebSocket(socket, JSON.stringify({
             type: "ERROR",
             code: error.code,
             message: error.message,
-          }));
+          }), logger, { connectionId });
           return;
         }
         const code = error instanceof ServiceError ? error.code : "invalid_rpc";
-        socket.send(JSON.stringify({
+        sendWebSocket(socket, JSON.stringify({
           id: requestMessage?.id ?? null,
           error: { code, message: error instanceof ServiceError ? error.message : "Invalid RPC request" },
-        }));
+        }), logger, { connectionId });
       }
     });
 
@@ -341,15 +373,52 @@ export async function createPrivateServer(config, options = {}) {
   });
   udpServer.on("error", (error) => logger.error("udp_error", { message: error.message }));
 
+  let httpListening = false;
+  let udpListening = false;
+  let heartbeatTimer = null;
+
+  function startHeartbeat() {
+    heartbeatTimer = setInterval(() => {
+      for (const client of webSocketServer.clients) {
+        if (client.readyState !== WebSocket.OPEN) continue;
+        if (client.isAlive === false) {
+          logger.warn("websocket_heartbeat_timeout");
+          client.terminate();
+          continue;
+        }
+        client.isAlive = false;
+        try {
+          client.ping();
+        } catch (error) {
+          logger.warn("websocket_ping_failed", { message: error.message });
+          client.terminate();
+        }
+      }
+    }, config.wsHeartbeatIntervalMs);
+    heartbeatTimer.unref();
+  }
+
   async function start() {
-    await new Promise((resolve, reject) => {
-      httpServer.once("error", reject);
-      httpServer.listen(config.port, config.host, resolve);
-    });
-    await new Promise((resolve, reject) => {
-      udpServer.once("error", reject);
-      udpServer.bind(config.udpPort, config.udpHost, resolve);
-    });
+    if (httpListening || udpListening) throw new Error("Server has already been started");
+    try {
+      await new Promise((resolve, reject) => {
+        httpServer.once("error", reject);
+        httpServer.listen(config.port, config.host, resolve);
+      });
+      httpListening = true;
+      await new Promise((resolve, reject) => {
+        udpServer.once("error", reject);
+        udpServer.bind(config.udpPort, config.udpHost, resolve);
+      });
+      udpListening = true;
+      startHeartbeat();
+    } catch (error) {
+      if (httpListening) {
+        await new Promise((resolve) => httpServer.close(() => resolve()));
+        httpListening = false;
+      }
+      throw error;
+    }
     const httpAddress = httpServer.address();
     const udpAddress = udpServer.address();
     logger.info("server_started", {
@@ -361,12 +430,22 @@ export async function createPrivateServer(config, options = {}) {
   }
 
   async function stop() {
-    for (const client of webSocketServer.clients) client.close(1001, "Server stopping");
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+    for (const client of webSocketServer.clients) client.terminate();
     webSocketServer.close();
-    await Promise.all([
-      new Promise((resolve) => httpServer.close(() => resolve())),
-      new Promise((resolve) => udpServer.close(() => resolve())),
-    ]);
+    const closers = [];
+    if (httpListening) {
+      closers.push(new Promise((resolve) => httpServer.close(() => resolve())));
+      httpListening = false;
+    }
+    if (udpListening) {
+      closers.push(new Promise((resolve) => udpServer.close(() => resolve())));
+      udpListening = false;
+    }
+    await Promise.all(closers);
     await store.flush();
   }
 

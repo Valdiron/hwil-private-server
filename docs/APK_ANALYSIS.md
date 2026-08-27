@@ -25,6 +25,11 @@ The IL2CPP metadata contains the following client-side implementation evidence:
 - Unity UNet race transport and UDP-oriented game server code
 - AWS GameLift session and endpoint models
 
+The `TRpcMethod` metadata also confirms the core numeric identifiers used by the gateway, including
+`registration=0`, `auth=1`, `sync=2`, `save=3`, `get_time=73`, `offline_start_race=102`,
+`online_races_enabled=119`, `start_league_race=120`, `get_config=128`, and `get_profile=153`.
+Knowing the identifiers does not by itself define each complete Thrift response structure.
+
 The Android network security configuration allows clear-text traffic and does not expose a
 certificate-pinning rule in the manifest configuration. This should permit a test build to point at
 a private HTTP/WebSocket endpoint once the serialized network settings are recovered.

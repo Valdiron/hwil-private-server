@@ -7,6 +7,10 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function isRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 export class JsonStore {
   #directory;
   #filename;
@@ -22,7 +26,11 @@ export class JsonStore {
     await fs.mkdir(this.#directory, { recursive: true });
     try {
       const parsed = JSON.parse(await fs.readFile(this.#filename, "utf8"));
-      if (parsed.schemaVersion !== 1 || typeof parsed.profiles !== "object") {
+      if (
+        parsed.schemaVersion !== 1 ||
+        !isRecord(parsed.profiles) ||
+        !isRecord(parsed.tickets ?? {})
+      ) {
         throw new Error("Unsupported state schema");
       }
       this.#state = {
@@ -71,7 +79,7 @@ export class JsonStore {
 
   async flush() {
     const snapshot = JSON.stringify(this.#state, null, 2);
-    this.#saveQueue = this.#saveQueue.then(async () => {
+    this.#saveQueue = this.#saveQueue.catch(() => {}).then(async () => {
       const temporary = `${this.#filename}.tmp`;
       await fs.writeFile(temporary, snapshot, { encoding: "utf8", mode: 0o600 });
       await fs.rename(temporary, this.#filename);

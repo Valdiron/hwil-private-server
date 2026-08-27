@@ -78,7 +78,7 @@ test("health, profile auth, save, and matchmaking flow", async (t) => {
 
   const root = await jsonRequest(`${baseUrl}/`);
   assert.equal(root.response.status, 200);
-  assert.equal(root.body.version, "0.6.0");
+  assert.equal(root.body.version, "0.7.0");
 
   const contentManifest = await jsonRequest(`${baseUrl}/v1/content/manifest`);
   assert.equal(contentManifest.response.status, 200);
@@ -212,6 +212,31 @@ test("race WebSocket matches players and relays movement only to opponents", asy
   assert.equal(secondJoined.id, secondMatch.playerId);
   assert.equal(first.messages.some((message) => message.type === "OPPONENT_MOVE"), false);
 
+  const movementCount = second.messages.filter((message) => message.type === "OPPONENT_MOVE").length;
+  first.socket.send(JSON.stringify({
+    type: "UPDATE_POSITION",
+    position,
+    rotation,
+    isBoosting: "false",
+  }));
+  const invalidBoost = await waitForMessage(
+    first.messages,
+    (message) => message.type === "ERROR" && message.code === "invalid_boost",
+  );
+  assert.equal(invalidBoost.code, "invalid_boost");
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(
+    second.messages.filter((message) => message.type === "OPPONENT_MOVE").length,
+    movementCount,
+  );
+
+  first.socket.send(JSON.stringify({ type: "JOIN_MATCH", carId: "car_twin_mill" }));
+  const duplicateJoin = await waitForMessage(
+    first.messages,
+    (message) => message.type === "ERROR" && message.code === "already_in_match",
+  );
+  assert.equal(duplicateJoin.code, "already_in_match");
+
   const status = await jsonRequest(`${baseUrl}/v1/status`);
   assert.equal(status.body.racePlayerCount, 2);
 
@@ -236,7 +261,7 @@ test("original /api WebSocket completes bootstrap RPCs without a JSON greeting",
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(messages.length, 0);
 
-  for (const [index, method] of [0, 1, 2, 73, 102].entries()) {
+  for (const [index, method] of [0, 1, 2, 3, 73, 102, 119, 120].entries()) {
     const sequence = index + 40;
     socket.send(buildHwilFrame({ flags: 3, method, sequence, payload: Buffer.from([0xde, 0xad]) }));
     const response = await new Promise((resolve, reject) => {
@@ -257,7 +282,9 @@ test("original /api WebSocket completes bootstrap RPCs without a JSON greeting",
     });
     assert.equal(response.flags, 4);
     assert.equal(response.method, method);
-    if (method === 102) assert.ok(response.payload.length > 20);
+    if ([102, 120].includes(method)) assert.ok(response.payload.length > 20);
+    if (method === 3) assert.equal(response.payload[0], 0x16);
+    if (method === 119) assert.deepEqual(response.payload, Buffer.from([0x12, 0x00]));
   }
 });
 
@@ -275,4 +302,29 @@ test("UDP discovery replies, while unknown datagrams are not reflected", async (
   });
   socket.send("HWIL_DISCOVERY", addresses.udpAddress.port, "127.0.0.1");
   assert.equal((await response).service, "hwil-private-server");
+});
+
+test("failed UDP startup rolls back the HTTP listener", async (t) => {
+  const blocker = dgram.createSocket("udp4");
+  await new Promise((resolve, reject) => {
+    blocker.once("error", reject);
+    blocker.bind(0, "127.0.0.1", resolve);
+  });
+  t.after(() => blocker.close());
+
+  const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "hwil-private-server-startup-"));
+  t.after(() => fs.rm(dataDir, { recursive: true, force: true }));
+  const config = loadConfig({
+    host: "127.0.0.1",
+    port: 0,
+    udpHost: "127.0.0.1",
+    udpPort: blocker.address().port,
+    tokenSecret: "test-secret-that-is-long-enough",
+    dataDir,
+    logLevel: "error",
+  });
+  const server = await createPrivateServer(config, { logger: silentLogger });
+  await assert.rejects(server.start(), /EADDRINUSE/);
+  assert.equal(server.httpServer.listening, false);
+  await server.stop();
 });

@@ -40,6 +40,9 @@ export function loadConfig(overrides = {}) {
     wsMaxPayloadBytes:
       overrides.wsMaxPayloadBytes ??
       integerValue(env.WS_MAX_PAYLOAD_BYTES, 1_048_576, 1024, 16_777_216),
+    wsHeartbeatIntervalMs:
+      overrides.wsHeartbeatIntervalMs ??
+      integerValue(env.WS_HEARTBEAT_INTERVAL_MS, 30_000, 5_000, 120_000),
   };
 
   if (!config.tokenSecret || config.tokenSecret.length < 16) {

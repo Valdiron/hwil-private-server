@@ -4,6 +4,8 @@ import {
   buildCompactMessageHeader,
   buildHwilFrame,
   buildHwilSuccessResponse,
+  buildOnlineRacesEnabledResponse,
+  buildSaveResponse,
   buildStartLeagueRaceResponse,
   inspectBinaryFrame,
   parseHwilFrame,
@@ -78,4 +80,33 @@ test("builds registration, auth, sync, and time success frames", () => {
   const time = parseHwilFrame(buildHwilSuccessResponse({ method: 73, sequence: 9 }, { epochMilli: 1_700_000_000_000 }));
   assert.equal(time.payload[0], 0x16);
   assert.equal(time.payload.at(-1), 0);
+
+  const save = parseHwilFrame(buildHwilSuccessResponse({ method: 3, sequence: 10 }, { epochMilli: 1_700_000_000_001 }));
+  assert.deepEqual(save.payload, buildSaveResponse(1_700_000_000_001));
+
+  const onlineRaces = parseHwilFrame(buildHwilSuccessResponse({ method: 119, sequence: 11 }));
+  assert.deepEqual(onlineRaces.payload, buildOnlineRacesEnabledResponse(false));
+  assert.deepEqual(onlineRaces.payload, Buffer.from([0x12, 0x00]));
+
+  const leagueRace = parseHwilFrame(buildHwilSuccessResponse(
+    { method: 120, sequence: 12 },
+    { raceId: "private-league-race" },
+  ));
+  assert.ok(leagueRace.payload.includes(Buffer.from("private-league-race")));
+});
+
+test("rejects out-of-range frame headers and overflowing compact varints", () => {
+  assert.throws(
+    () => buildHwilFrame({ method: -1, sequence: 0 }),
+    /unsigned 16-bit integer/,
+  );
+  assert.throws(
+    () => buildHwilFrame({ method: 0, sequence: 65_536 }),
+    /unsigned 16-bit integer/,
+  );
+
+  const overflow = Buffer.from([0x82, 0x21, 0xff, 0xff, 0xff, 0xff, 0x10]);
+  const inspection = inspectBinaryFrame(overflow);
+  assert.equal(inspection.protocol, "malformed-thrift-compact");
+  assert.match(inspection.error, /32-bit range/);
 });

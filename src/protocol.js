@@ -15,11 +15,23 @@ export const HWIL_RPC_METHODS = Object.freeze({
   3: "save",
   5: "gen_auth_token",
   6: "forget_me",
+  10: "league_status",
+  11: "start_race_search",
+  12: "stop_race_search",
+  13: "end_race",
+  14: "start_matching",
+  25: "get_gamelift_endpoints",
   73: "get_time",
+  100: "end_tutorial_race",
   102: "offline_start_race",
   103: "offline_end_race",
+  118: "timeout_offline_start_race",
+  119: "online_races_enabled",
+  120: "start_league_race",
   128: "get_config",
   153: "get_profile",
+  181: "get_profile_preview",
+  2000: "test_websocket_events",
 });
 
 const COMPACT_TYPE = Object.freeze({
@@ -42,14 +54,15 @@ const MESSAGE_TYPES = Object.freeze({ 1: "call", 2: "reply", 3: "exception", 4: 
 
 function readVarint(buffer, start) {
   let value = 0;
-  let shift = 0;
   let offset = start;
-  while (offset < buffer.length && shift <= 35) {
+  for (let index = 0; index < 5 && offset < buffer.length; index += 1) {
     const byte = buffer[offset];
-    value |= (byte & 0x7f) << shift;
+    if (index === 4 && (byte & 0xf0) !== 0) {
+      throw new Error("Varint exceeds the unsigned 32-bit range");
+    }
+    value += (byte & 0x7f) * (2 ** (index * 7));
     offset += 1;
     if ((byte & 0x80) === 0) return { value: value >>> 0, offset };
-    shift += 7;
   }
   throw new Error("Invalid or truncated varint");
 }
@@ -126,6 +139,15 @@ export function buildHwilFrame({
   sequence,
   payload = Buffer.from([COMPACT_TYPE.stop]),
 }) {
+  if (!Number.isInteger(flags) || flags < 0 || flags > 0xff) {
+    throw new RangeError("HWIL flags must be an unsigned byte");
+  }
+  if (!Number.isInteger(method) || method < 0 || method > 0xffff) {
+    throw new RangeError("HWIL method must be an unsigned 16-bit integer");
+  }
+  if (!Number.isInteger(sequence) || sequence < 0 || sequence > 0xffff) {
+    throw new RangeError("HWIL sequence must be an unsigned 16-bit integer");
+  }
   const header = Buffer.allocUnsafe(5);
   header[0] = flags;
   header.writeUInt16LE(method, 1);
@@ -145,6 +167,17 @@ export function buildTimeResponse(epochMilli = Date.now()) {
   return Buffer.concat([
     writeCompactInt64Field(1, 0, epochMilli),
     Buffer.from([COMPACT_TYPE.stop]),
+  ]);
+}
+
+export function buildSaveResponse(epochMilli = Date.now()) {
+  return buildTimeResponse(epochMilli);
+}
+
+export function buildOnlineRacesEnabledResponse(enabled = false) {
+  return Buffer.from([
+    (1 << 4) | (enabled ? COMPACT_TYPE.booleanTrue : COMPACT_TYPE.booleanFalse),
+    COMPACT_TYPE.stop,
   ]);
 }
 
@@ -168,10 +201,14 @@ export function buildHwilSuccessResponse(frame, options = {}) {
   let payload = Buffer.from([COMPACT_TYPE.stop]);
   if (frame.method === 0) {
     payload = buildRegistrationResponse(options.profileId, options.profileSecret);
+  } else if (frame.method === 3) {
+    payload = buildSaveResponse(options.epochMilli ?? Date.now());
   } else if (frame.method === 73) {
     payload = buildTimeResponse(options.epochMilli ?? Date.now());
-  } else if (frame.method === 102) {
+  } else if (frame.method === 102 || frame.method === 120) {
     payload = buildStartLeagueRaceResponse(options.raceId, options.ticketId);
+  } else if (frame.method === 119) {
+    payload = buildOnlineRacesEnabledResponse(false);
   }
   return buildHwilFrame({ method: frame.method, sequence: frame.sequence, payload });
 }
@@ -185,7 +222,16 @@ export function inspectBinaryFrame(input) {
     protocol: "unknown-binary",
   };
 
-  if (buffer.length >= 5 && [2, 3, 4, 5, 8, 9, 16, 17].includes(buffer[0])) {
+  const frameTypeFlags =
+    HWIL_FRAME_FLAGS.request |
+    HWIL_FRAME_FLAGS.success |
+    HWIL_FRAME_FLAGS.failure |
+    HWIL_FRAME_FLAGS.event;
+  if (
+    buffer.length >= 5 &&
+    (buffer[0] & ~0x1f) === 0 &&
+    (buffer[0] & frameTypeFlags) !== 0
+  ) {
     try {
       const frame = parseHwilFrame(buffer);
       return {

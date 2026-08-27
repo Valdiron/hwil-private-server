@@ -29,5 +29,9 @@ test("builds a validated replacement data tree and structural OBB", async (t) =>
   await obb.read(obbPrefix, 0, 2, 0);
   await obb.close();
   assert.equal(obbPrefix.toString("hex"), "504b");
-});
 
+  const firstObbHash = createHash("sha256").update(await fs.readFile(result.obbPath)).digest("hex");
+  const rebuilt = await buildReplacementData({ buildRoot });
+  const secondObbHash = createHash("sha256").update(await fs.readFile(rebuilt.obbPath)).digest("hex");
+  assert.equal(secondObbHash, firstObbHash);
+});

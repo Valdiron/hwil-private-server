@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageName = "com.mattel.HWInfiniteLoop";
 const obbName = "main.378.com.mattel.HWInfiniteLoop.obb";
+const deterministicMtime = new Date("2000-01-01T00:00:00.000Z");
 
 async function walk(directory, root = directory) {
   const entries = await fs.readdir(directory, { withFileTypes: true });
@@ -74,8 +75,17 @@ export async function buildReplacementData(options = {}) {
   await fs.writeFile(path.join(dataRoot, "manifest.json"), manifestBytes);
   await fs.writeFile(path.join(obbStaging, "manifest.json"), manifestBytes);
 
+  const stagedFiles = (await walk(path.join(buildRoot, "obb-staging"))).sort();
+  for (const relativePath of stagedFiles) {
+    await fs.utimes(
+      path.join(buildRoot, "obb-staging", relativePath),
+      deterministicMtime,
+      deterministicMtime,
+    );
+  }
+
   const obbPath = path.join(obbDirectory, obbName);
-  const zip = spawnSync("zip", ["-q", "-X", "-0", "-r", obbPath, "."], {
+  const zip = spawnSync("zip", ["-q", "-X", "-0", obbPath, ...stagedFiles], {
     cwd: path.join(buildRoot, "obb-staging"),
     encoding: "utf8",
   });

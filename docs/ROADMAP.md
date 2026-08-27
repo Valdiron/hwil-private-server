@@ -28,7 +28,8 @@
 1. Replace or hook the IL2CPP resource loader so the client reads the clean-room JSON objects.
 2. Build new Unity scenes, models, materials, UI prefabs, and sound banks without original assets.
 3. Point the bridged client at the diagnostic WebSocket endpoint.
-4. Capture or define the authentication, sync, config, and profile binary frames.
+4. Capture or define the full authentication, sync, config, and profile response payloads; the
+   five-byte envelope and core numeric method identifiers are already recovered.
 5. Finish the clean-room Thrift schemas and compatible response serialization.
 6. Implement the clean-room UDP race packet registry and simulation.
 7. Test startup, authentication, training, garage, offline races, and multiplayer in that order.
