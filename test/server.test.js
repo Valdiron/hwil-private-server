@@ -51,6 +51,10 @@ test("health, profile auth, save, and matchmaking flow", async (t) => {
   assert.equal(health.response.status, 200);
   assert.equal(health.body.status, "ok");
 
+  const originalClientStatus = await jsonRequest(`${baseUrl}/status`);
+  assert.equal(originalClientStatus.response.status, 200);
+  assert.equal(originalClientStatus.body.status, "ok");
+
   const root = await jsonRequest(`${baseUrl}/`);
   assert.equal(root.response.status, 200);
   assert.equal(root.body.version, "0.4.0");

@@ -110,6 +110,12 @@ export async function createPrivateServer(config, options = {}) {
     const requestId = randomUUID();
     const pathname = requestPath(request);
     try {
+      // The original 1.35.0 client derives this URL from the WebSocket
+      // endpoint (wss -> https, api -> status) and treats failures as a
+      // lost backend connection.
+      if (request.method === "GET" && pathname === "/status") {
+        return sendJson(response, 200, { status: "ok" });
+      }
       if (request.method === "GET" && pathname === "/health") {
         return sendJson(response, 200, { status: "ok", uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000) });
       }
