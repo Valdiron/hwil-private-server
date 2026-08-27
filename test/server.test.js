@@ -44,6 +44,27 @@ async function jsonRequest(url, options = {}) {
   return { response, body: await response.json() };
 }
 
+async function openJsonSocket(url) {
+  const socket = new WebSocket(url);
+  const messages = [];
+  socket.on("message", (data) => messages.push(JSON.parse(data.toString())));
+  await new Promise((resolve, reject) => {
+    socket.once("open", resolve);
+    socket.once("error", reject);
+  });
+  return { socket, messages };
+}
+
+async function waitForMessage(messages, predicate, timeoutMs = 1000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const found = messages.find(predicate);
+    if (found) return found;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  throw new Error("WebSocket message timed out");
+}
+
 test("health, profile auth, save, and matchmaking flow", async (t) => {
   const { baseUrl } = await fixture(t);
 
@@ -57,7 +78,7 @@ test("health, profile auth, save, and matchmaking flow", async (t) => {
 
   const root = await jsonRequest(`${baseUrl}/`);
   assert.equal(root.response.status, 200);
-  assert.equal(root.body.version, "0.5.0");
+  assert.equal(root.body.version, "0.6.0");
 
   const contentManifest = await jsonRequest(`${baseUrl}/v1/content/manifest`);
   assert.equal(contentManifest.response.status, 200);
@@ -136,6 +157,70 @@ test("WebSocket exposes clean-room RPC", async (t) => {
     }, 5);
   });
   assert.equal(typeof reply.result.epochMilli, "number");
+});
+
+test("race WebSocket matches players and relays movement only to opponents", async (t) => {
+  const { addresses, baseUrl } = await fixture(t);
+  const endpoint = `ws://127.0.0.1:${addresses.httpAddress.port}/race`;
+  const first = await openJsonSocket(endpoint);
+  const second = await openJsonSocket(endpoint);
+  t.after(() => {
+    if (first.socket.readyState < WebSocket.CLOSING) first.socket.close();
+    if (second.socket.readyState < WebSocket.CLOSING) second.socket.close();
+  });
+
+  await Promise.all([
+    waitForMessage(first.messages, (message) => message.type === "hello"),
+    waitForMessage(second.messages, (message) => message.type === "hello"),
+  ]);
+
+  first.socket.send(JSON.stringify({ type: "JOIN_MATCH", carId: "car_twin_mill" }));
+  const firstMatch = await waitForMessage(
+    first.messages,
+    (message) => message.type === "MATCH_FOUND",
+  );
+  assert.equal(firstMatch.matchId, "room_1");
+  assert.match(firstMatch.playerId, /^p_[a-f0-9]{12}$/);
+
+  second.socket.send(JSON.stringify({ type: "JOIN_MATCH", carId: "car_bone_shaker" }));
+  const secondMatch = await waitForMessage(
+    second.messages,
+    (message) => message.type === "MATCH_FOUND",
+  );
+  assert.deepEqual(secondMatch.opponents, [{ id: firstMatch.playerId, carId: "car_twin_mill" }]);
+  const secondJoined = await waitForMessage(
+    first.messages,
+    (message) => message.type === "PLAYER_JOINED",
+  );
+
+  const position = { x: 10.5, y: 0.25, z: -4 };
+  const rotation = { x: 0, y: 0.5, z: 0, w: 0.5 };
+  first.socket.send(JSON.stringify({
+    type: "UPDATE_POSITION",
+    position,
+    rotation,
+    isBoosting: true,
+  }));
+  const movement = await waitForMessage(
+    second.messages,
+    (message) => message.type === "OPPONENT_MOVE",
+  );
+  assert.equal(movement.id, firstMatch.playerId);
+  assert.deepEqual(movement.position, position);
+  assert.deepEqual(movement.rotation, rotation);
+  assert.equal(movement.isBoosting, true);
+  assert.equal(secondJoined.id, secondMatch.playerId);
+  assert.equal(first.messages.some((message) => message.type === "OPPONENT_MOVE"), false);
+
+  const status = await jsonRequest(`${baseUrl}/v1/status`);
+  assert.equal(status.body.racePlayerCount, 2);
+
+  first.socket.close();
+  const left = await waitForMessage(
+    second.messages,
+    (message) => message.type === "PLAYER_LEFT",
+  );
+  assert.equal(left.id, firstMatch.playerId);
 });
 
 test("original /api WebSocket completes bootstrap RPCs without a JSON greeting", async (t) => {

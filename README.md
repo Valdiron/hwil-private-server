@@ -1,17 +1,17 @@
 # HW Infinite Loop private server and replacement data
 
-Version 0.5.0 adds a compatible offline-race start response on top of the original client's five-byte binary RPC framing and `/api`
-WebSocket bootstrap for registration, authentication, synchronization, and server time. It retains
-the production-ready Render Blueprint, automatic public-host detection on Render,
-and a root status endpoint.
+Version 0.6.0 adds a room-based JSON race relay for matchmaking, player presence, movement,
+rotation, and nitro state. It shares the same Render HTTP listener instead of opening a second
+public port. The original client's five-byte binary RPC framing and `/api` bootstrap remain intact.
 
 This is a clean-room private-server foundation, replacement content pack, and protocol diagnostic
 gateway for the user-supplied Hot Wheels Infinite Loop `1.35.0` APK. It contains no Mattel or
 Creative Mobile assets.
 
-> Status: the server, binary bootstrap, and offline-race start response are covered by automated
-> tests. The complete original backend is not reproduced, so remaining client RPCs are handled with
-> compatible empty responses until device testing identifies any additional required fields.
+> Status: the server, binary bootstrap, offline-race start response, and JSON multiplayer relay are
+> covered by automated tests. The original Unity race transport is binary rather than this clean-room
+> JSON protocol, so device captures are still required before claiming original-client multiplayer
+> compatibility.
 
 ## What works
 
@@ -21,6 +21,7 @@ Creative Mobile assets.
 - configuration and server time
 - local matchmaking tickets
 - WebSocket JSON RPC at `/ws` and `/rpc`
+- JSON race matchmaking and movement relay at `/race`, `/ws`, and `/rpc`
 - safe inspection of unknown binary WebSocket frames
 - UDP discovery and diagnostic listener
 - clean-room vehicle, track, progression, profile, and localization data
@@ -107,6 +108,29 @@ Supported method aliases include `Auth`, `GetConfig`, `GetProfile`, `SaveProfile
 `StartRaceSearch`, `StopRaceSearch`, and `GetGameliftEndpoints`. These aliases help organize the
 compatibility work but do not claim that the original binary RPC envelope is already implemented.
 
+## JSON multiplayer relay
+
+Connect two or more clients to `ws://SERVER:8080/race`. Join the shared room with:
+
+```json
+{"type":"JOIN_MATCH","carId":"car_twin_mill"}
+```
+
+The server returns `MATCH_FOUND` with a stable connection player ID. Send movement with:
+
+```json
+{
+  "type":"UPDATE_POSITION",
+  "position":{"x":0,"y":0,"z":0},
+  "rotation":{"x":0,"y":0,"z":0,"w":1},
+  "isBoosting":false
+}
+```
+
+Other players in `room_1` receive `OPPONENT_MOVE`; the sender does not receive its own movement.
+Disconnects produce `PLAYER_LEFT`. Input vectors and car IDs are validated, and all public WebSocket
+traffic uses the same Render `PORT` listener.
+
 ## Diagnostic binary capture
 
 Binary WebSocket frames are fingerprinted in structured logs. To save raw frames locally for
@@ -115,7 +139,7 @@ restricted permissions under `data/captures/`. Do this only on a private test in
 
 ## Important limits
 
-The attached APK contains only the first Unity scene. The generated OBB is a valid structural ZIP,
-but it does not reproduce the missing 21 proprietary Unity scenes and cannot make the untouched APK
-playable by itself. The client must be changed to consume this open JSON format or rebuilt around the
-new content. Do not expose the server with the default secret.
+This repository contains no proprietary Unity assets. A user-provided APK/OBB can be patched and
+distributed separately, but it must still speak the implemented server protocol. The JSON race relay
+is intended for a clean-room client or a later client patch; the untouched original race transport is
+not JSON. Do not expose the server with the default secret.

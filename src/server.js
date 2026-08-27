@@ -6,8 +6,12 @@ import path from "node:path";
 import { WebSocketServer } from "ws";
 import { createLogger } from "./logger.js";
 import { buildHwilSuccessResponse, inspectBinaryFrame, parseHwilFrame } from "./protocol.js";
+import { RaceHub, RaceProtocolError } from "./race.js";
 import { PrivateServerService, ServiceError } from "./service.js";
 import { JsonStore } from "./store.js";
+
+const SERVER_VERSION = "0.6.0";
+const WEBSOCKET_PATHS = Object.freeze(["/api", "/ws", "/rpc", "/race"]);
 
 function sendJson(response, status, body) {
   const payload = Buffer.from(JSON.stringify(body));
@@ -105,6 +109,7 @@ export async function createPrivateServer(config, options = {}) {
   const compatibilityProfileSecret = createHash("sha256")
     .update(`${config.tokenSecret}:hwil-private-secret-v1`)
     .digest();
+  const raceHub = new RaceHub(logger);
 
   const httpServer = http.createServer(async (request, response) => {
     const requestId = randomUUID();
@@ -122,7 +127,7 @@ export async function createPrivateServer(config, options = {}) {
       if (request.method === "GET" && pathname === "/") {
         return sendJson(response, 200, {
           service: "hwil-private-server",
-          version: "0.5.0",
+          version: SERVER_VERSION,
           status: "online",
           health: "/health",
           compatibility: "/v1/compatibility",
@@ -131,9 +136,10 @@ export async function createPrivateServer(config, options = {}) {
       if (request.method === "GET" && pathname === "/v1/status") {
         return sendJson(response, 200, {
           service: "hwil-private-server",
-          version: "0.5.0",
+          version: SERVER_VERSION,
           clientVersion: config.clientVersion,
-          websocketPaths: ["/api", "/ws", "/rpc"],
+          websocketPaths: WEBSOCKET_PATHS,
+          racePlayerCount: raceHub.size,
           udpPort: config.udpPort,
           compatibilityPhase: "original-client-bootstrap",
           replacementContentManifest: "/v1/content/manifest",
@@ -207,7 +213,7 @@ export async function createPrivateServer(config, options = {}) {
   const webSocketServer = new WebSocketServer({ noServer: true, maxPayload: config.wsMaxPayloadBytes });
   httpServer.on("upgrade", (request, socket, head) => {
     const pathname = requestPath(request);
-    if (pathname !== "/api" && pathname !== "/ws" && pathname !== "/rpc") return socket.destroy();
+    if (!WEBSOCKET_PATHS.includes(pathname)) return socket.destroy();
     webSocketServer.handleUpgrade(request, socket, head, (client) => {
       webSocketServer.emit("connection", client, request);
     });
@@ -215,6 +221,7 @@ export async function createPrivateServer(config, options = {}) {
 
   webSocketServer.on("connection", (socket, request) => {
     const connectionId = randomUUID();
+    const playerId = `p_${connectionId.replaceAll("-", "").slice(0, 12)}`;
     const pathname = requestPath(request);
     const originalClient = pathname === "/api";
     logger.info("websocket_connected", { connectionId, pathname, remoteAddress: request.socket.remoteAddress });
@@ -224,6 +231,7 @@ export async function createPrivateServer(config, options = {}) {
         service: "hwil-private-server",
         compatibilityPhase: "original-client-bootstrap",
         connectionId,
+        playerId,
       }));
     }
 
@@ -270,6 +278,15 @@ export async function createPrivateServer(config, options = {}) {
       let requestMessage;
       try {
         requestMessage = JSON.parse(data.toString("utf8"));
+        if (requestMessage && typeof requestMessage.type === "string") {
+          if (!raceHub.handle(socket, playerId, requestMessage)) {
+            throw new RaceProtocolError(
+              "unknown_message_type",
+              `Unsupported race message type: ${requestMessage.type}`,
+            );
+          }
+          return;
+        }
         if (!requestMessage || typeof requestMessage.method !== "string") {
           throw new ServiceError(400, "invalid_rpc", "RPC request requires a method");
         }
@@ -280,6 +297,14 @@ export async function createPrivateServer(config, options = {}) {
         );
         socket.send(JSON.stringify({ id: requestMessage.id ?? null, result }));
       } catch (error) {
+        if (error instanceof RaceProtocolError) {
+          socket.send(JSON.stringify({
+            type: "ERROR",
+            code: error.code,
+            message: error.message,
+          }));
+          return;
+        }
         const code = error instanceof ServiceError ? error.code : "invalid_rpc";
         socket.send(JSON.stringify({
           id: requestMessage?.id ?? null,
@@ -288,7 +313,10 @@ export async function createPrivateServer(config, options = {}) {
       }
     });
 
-    socket.on("close", () => logger.info("websocket_disconnected", { connectionId }));
+    socket.on("close", () => {
+      raceHub.disconnect(socket, playerId);
+      logger.info("websocket_disconnected", { connectionId, playerId });
+    });
     socket.on("error", (error) => logger.warn("websocket_error", { connectionId, message: error.message }));
   });
 
@@ -304,7 +332,7 @@ export async function createPrivateServer(config, options = {}) {
     if (message.toString("utf8") === "HWIL_DISCOVERY") {
       const response = Buffer.from(JSON.stringify({
         service: "hwil-private-server",
-        version: "0.5.0",
+        version: SERVER_VERSION,
         clientVersion: config.clientVersion,
         phase: "original-client-bootstrap",
       }));
@@ -342,5 +370,5 @@ export async function createPrivateServer(config, options = {}) {
     await store.flush();
   }
 
-  return Object.freeze({ start, stop, service, store, httpServer, udpServer, webSocketServer });
+  return Object.freeze({ start, stop, service, store, raceHub, httpServer, udpServer, webSocketServer });
 }
